@@ -43,9 +43,9 @@
 #include <cartesian_controller_base/IKSolver.h>
 #include <cartesian_controller_base/SpatialPDController.h>
 #include <cartesian_controller_base/Utility.h>
-#include <realtime_tools/realtime_publisher.h>
+#include <realtime_tools/realtime_publisher.hpp>
 
-#include <controller_interface/controller_interface.hpp>
+#include <controller_interface/chainable_controller_interface.hpp>
 #include <functional>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
@@ -75,17 +75,22 @@ namespace cartesian_controller_base
  * writeJointControlCmds.
  *
  */
-class CartesianControllerBase : public controller_interface::ControllerInterface
+class CartesianControllerBase : public controller_interface::ChainableControllerInterface
 {
 public:
   CartesianControllerBase();
-  virtual ~CartesianControllerBase(){};
+  virtual ~CartesianControllerBase() {};
 
   virtual controller_interface::InterfaceConfiguration command_interface_configuration()
     const override;
 
   virtual controller_interface::InterfaceConfiguration state_interface_configuration()
     const override;
+
+  virtual std::vector<hardware_interface::StateInterface> on_export_state_interfaces() override;
+
+  virtual std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces()
+    override;
 
   virtual LifecycleNodeInterface::CallbackReturn on_init() override;
 
@@ -234,6 +239,9 @@ private:
   trajectory_msgs::msg::JointTrajectoryPoint m_simulated_joint_motion;
   SpatialPDController m_spatial_controller;
   ctrl::Vector6D m_cartesian_input;
+
+  geometry_msgs::msg::PoseStamped m_pose_msg;
+  geometry_msgs::msg::TwistStamped m_twist_msg;
 
   // Against multi initialization in multi inheritance scenarios
   bool m_initialized = {false};

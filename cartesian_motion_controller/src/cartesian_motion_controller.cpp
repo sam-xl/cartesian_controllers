@@ -99,9 +99,28 @@ CartesianMotionController::on_deactivate(const rclcpp_lifecycle::State & previou
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type CartesianMotionController::update(const rclcpp::Time & time,
-                                                                    const rclcpp::Duration & period)
+controller_interface::return_type CartesianMotionController::update_reference_from_subscribers(
+  const rclcpp::Time & time, const rclcpp::Duration & period)
 {
+  reference_interfaces_[0] = m_target_pose.position.x;
+  reference_interfaces_[1] = m_target_pose.position.y;
+  reference_interfaces_[2] = m_target_pose.position.z;
+  reference_interfaces_[3] = m_target_pose.orientation.x;
+  reference_interfaces_[4] = m_target_pose.orientation.y;
+  reference_interfaces_[5] = m_target_pose.orientation.z;
+  reference_interfaces_[6] = m_target_pose.orientation.w;
+  return controller_interface::return_type::OK;
+}
+
+controller_interface::return_type CartesianMotionController::update_and_write_commands(
+  const rclcpp::Time & time, const rclcpp::Duration & period)
+{
+  // Convert target pose to KDL
+  m_target_frame = KDL::Frame(
+    KDL::Rotation::Quaternion(reference_interfaces_[3], reference_interfaces_[4],
+                              reference_interfaces_[5], reference_interfaces_[6]),
+    KDL::Vector(reference_interfaces_[0], reference_interfaces_[1], reference_interfaces_[2]));
+
   // Synchronize the internal model and the real robot
   Base::m_ik_solver->synchronizeJointPositions(Base::m_joint_state_pos_handles);
 
@@ -198,10 +217,33 @@ void CartesianMotionController::targetFrameCallback(
     return;
   }
 
-  m_target_frame = KDL::Frame(
-    KDL::Rotation::Quaternion(target->pose.orientation.x, target->pose.orientation.y,
-                              target->pose.orientation.z, target->pose.orientation.w),
-    KDL::Vector(target->pose.position.x, target->pose.position.y, target->pose.position.z));
+  // Override target pose
+  m_target_pose = target->pose;
+}
+
+std::vector<hardware_interface::CommandInterface>
+CartesianMotionController::on_export_reference_interfaces()
+{
+  reference_interfaces_.resize(7, std::numeric_limits<double>::quiet_NaN());
+
+  std::vector<hardware_interface::CommandInterface> reference_interfaces;
+  reference_interfaces.reserve(7);
+
+  reference_interfaces.emplace_back(get_node()->get_name(), "position.x",
+                                    &reference_interfaces_[0]);
+  reference_interfaces.emplace_back(get_node()->get_name(), "position.y",
+                                    &reference_interfaces_[1]);
+  reference_interfaces.emplace_back(get_node()->get_name(), "position.z",
+                                    &reference_interfaces_[2]);
+  reference_interfaces.emplace_back(get_node()->get_name(), "orientation.x",
+                                    &reference_interfaces_[3]);
+  reference_interfaces.emplace_back(get_node()->get_name(), "orientation.y",
+                                    &reference_interfaces_[4]);
+  reference_interfaces.emplace_back(get_node()->get_name(), "orientation.z",
+                                    &reference_interfaces_[5]);
+  reference_interfaces.emplace_back(get_node()->get_name(), "orientation.w",
+                                    &reference_interfaces_[6]);
+  return reference_interfaces;
 }
 
 }  // namespace cartesian_motion_controller
@@ -210,4 +252,4 @@ void CartesianMotionController::targetFrameCallback(
 #include <pluginlib/class_list_macros.hpp>
 
 PLUGINLIB_EXPORT_CLASS(cartesian_motion_controller::CartesianMotionController,
-                       controller_interface::ControllerInterface)
+                       controller_interface::ChainableControllerInterface)

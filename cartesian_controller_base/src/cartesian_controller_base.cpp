@@ -474,37 +474,73 @@ void CartesianControllerBase::publishStateFeedback()
 {
   // End-effector pose
   auto pose = m_ik_solver->getEndEffectorPose();
-  if (m_feedback_pose_publisher->trylock())
-  {
-    m_feedback_pose_publisher->msg_.header.stamp = get_node()->now();
-    m_feedback_pose_publisher->msg_.header.frame_id = m_robot_base_link;
-    m_feedback_pose_publisher->msg_.pose.position.x = pose.p.x();
-    m_feedback_pose_publisher->msg_.pose.position.y = pose.p.y();
-    m_feedback_pose_publisher->msg_.pose.position.z = pose.p.z();
 
-    pose.M.GetQuaternion(m_feedback_pose_publisher->msg_.pose.orientation.x,
-                         m_feedback_pose_publisher->msg_.pose.orientation.y,
-                         m_feedback_pose_publisher->msg_.pose.orientation.z,
-                         m_feedback_pose_publisher->msg_.pose.orientation.w);
+  m_pose_msg.header.stamp = get_node()->now();
+  m_pose_msg.header.frame_id = m_robot_base_link;
+  m_pose_msg.pose.position.x = pose.p.x();
+  m_pose_msg.pose.position.y = pose.p.y();
+  m_pose_msg.pose.position.z = pose.p.z();
 
-    m_feedback_pose_publisher->unlockAndPublish();
-  }
+  pose.M.GetQuaternion(m_pose_msg.pose.orientation.x, m_pose_msg.pose.orientation.y,
+                       m_pose_msg.pose.orientation.z, m_pose_msg.pose.orientation.w);
+
+  // Additional copy required over old method
+  m_feedback_pose_publisher->try_publish(m_pose_msg);
 
   // End-effector twist
   auto twist = m_ik_solver->getEndEffectorVel();
-  if (m_feedback_twist_publisher->trylock())
-  {
-    m_feedback_twist_publisher->msg_.header.stamp = get_node()->now();
-    m_feedback_twist_publisher->msg_.header.frame_id = m_robot_base_link;
-    m_feedback_twist_publisher->msg_.twist.linear.x = twist[0];
-    m_feedback_twist_publisher->msg_.twist.linear.y = twist[1];
-    m_feedback_twist_publisher->msg_.twist.linear.z = twist[2];
-    m_feedback_twist_publisher->msg_.twist.angular.x = twist[3];
-    m_feedback_twist_publisher->msg_.twist.angular.y = twist[4];
-    m_feedback_twist_publisher->msg_.twist.angular.z = twist[5];
+  m_twist_msg.header.stamp = get_node()->now();
+  m_twist_msg.header.frame_id = m_robot_base_link;
+  m_twist_msg.twist.linear.x = twist[0];
+  m_twist_msg.twist.linear.y = twist[1];
+  m_twist_msg.twist.linear.z = twist[2];
+  m_twist_msg.twist.angular.x = twist[3];
+  m_twist_msg.twist.angular.y = twist[4];
+  m_twist_msg.twist.angular.z = twist[5];
 
-    m_feedback_twist_publisher->unlockAndPublish();
-  }
+  // Additional copy required over old method
+  m_feedback_twist_publisher->try_publish(m_twist_msg);
+}
+
+std::vector<hardware_interface::StateInterface>
+CartesianControllerBase::on_export_state_interfaces()
+{
+  std::vector<hardware_interface::StateInterface> state_interfaces;
+  state_interfaces.reserve(7 + 6);
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "position.x",
+                                &(m_pose_msg.pose.position.x));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "position.y",
+                                &(m_pose_msg.pose.position.y));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "position.z",
+                                &(m_pose_msg.pose.position.z));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "orientation.x",
+                                &(m_pose_msg.pose.orientation.x));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "orientation.y",
+                                &(m_pose_msg.pose.orientation.y));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "orientation.z",
+                                &(m_pose_msg.pose.orientation.z));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/pose"), "orientation.w",
+                                &(m_pose_msg.pose.orientation.w));
+
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/twist"), "linear.x",
+                                &(m_twist_msg.twist.linear.x));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/twist"), "linear.y",
+                                &(m_twist_msg.twist.linear.y));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/twist"), "linear.z",
+                                &(m_twist_msg.twist.linear.z));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/twist"), "angular.x",
+                                &(m_twist_msg.twist.angular.x));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/twist"), "angular.y",
+                                &(m_twist_msg.twist.angular.y));
+  state_interfaces.emplace_back(get_node()->get_name() + std::string("/twist"), "angular.z",
+                                &(m_twist_msg.twist.angular.z));
+  return state_interfaces;
+}
+
+std::vector<hardware_interface::CommandInterface>
+CartesianControllerBase::on_export_reference_interfaces()
+{
+  return {};
 }
 
 }  // namespace cartesian_controller_base

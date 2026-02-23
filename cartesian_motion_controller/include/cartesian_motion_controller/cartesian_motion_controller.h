@@ -88,8 +88,14 @@ public:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_deactivate(
     const rclcpp_lifecycle::State & previous_state) override;
 
-  controller_interface::return_type update(const rclcpp::Time & time,
-                                           const rclcpp::Duration & period) override;
+  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces()
+    override;
+
+  controller_interface::return_type update_reference_from_subscribers(
+    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+
+  controller_interface::return_type update_and_write_commands(
+    const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
   using Base = cartesian_controller_base::CartesianControllerBase;
 
@@ -105,8 +111,9 @@ protected:
      * @return The error as a 6-dim vector (linear, angular) w.r.t to the robot base link
      */
   ctrl::Vector6D computeMotionError();
-  KDL::Frame m_target_frame;
   KDL::Frame m_current_frame;
+  KDL::Frame m_target_frame;
+  geometry_msgs::msg::Pose m_target_pose;
 
   void targetFrameCallback(const geometry_msgs::msg::PoseStamped::SharedPtr target);
 
