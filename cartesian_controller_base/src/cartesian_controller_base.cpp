@@ -364,6 +364,8 @@ void CartesianControllerBase::writeJointControlCmds()
     return;
   }
 
+  bool all_writes_successful = true;
+
   // Write all available types.
   for (const auto & type : m_cmd_interface_types)
   {
@@ -371,16 +373,23 @@ void CartesianControllerBase::writeJointControlCmds()
     {
       for (size_t i = 0; i < m_joint_names.size(); ++i)
       {
-        m_joint_cmd_pos_handles[i].get().set_value(m_simulated_joint_motion.positions[i]);
+        all_writes_successful &=
+          m_joint_cmd_pos_handles[i].get().set_value(m_simulated_joint_motion.positions[i]);
       }
     }
     if (type == hardware_interface::HW_IF_VELOCITY)
     {
       for (size_t i = 0; i < m_joint_names.size(); ++i)
       {
-        m_joint_cmd_vel_handles[i].get().set_value(m_simulated_joint_motion.velocities[i]);
+        all_writes_successful &=
+          m_joint_cmd_vel_handles[i].get().set_value(m_simulated_joint_motion.velocities[i]);
       }
     }
+  }
+
+  if (!all_writes_successful)
+  {
+    RCLCPP_WARN(get_node()->get_logger(), "Error while writing to command interfaces.");
   }
 }
 

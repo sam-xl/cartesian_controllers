@@ -70,18 +70,15 @@ bool IKSolver::setStartState(
   {
     // Interface type should be checked by the caller.
     // Add additional plausibility check just in case.
-    if (joint_pos_handles[i].get().get_interface_name() == hardware_interface::HW_IF_POSITION)
-    {
-      m_current_positions(i) = joint_pos_handles[i].get().get_value();
-      m_current_velocities(i) = 0.0;
-      m_current_accelerations(i) = 0.0;
-      m_last_positions(i) = m_current_positions(i);
-      m_last_velocities(i) = m_current_velocities(i);
-    }
-    else
-    {
+    if (joint_pos_handles[i].get().get_interface_name() != hardware_interface::HW_IF_POSITION)
       return false;
-    }
+    const auto current_position_opt = joint_pos_handles[i].get().get_optional();
+    if (!current_position_opt) return false;
+    m_current_positions(i) = current_position_opt.value();
+    m_current_velocities(i) = 0.0;
+    m_current_accelerations(i) = 0.0;
+    m_last_positions(i) = m_current_positions(i);
+    m_last_velocities(i) = m_current_velocities(i);
   }
   return true;
 }
@@ -94,11 +91,12 @@ void IKSolver::synchronizeJointPositions(
   {
     // Interface type should be checked by the caller.
     // Add additional plausibility check just in case.
-    if (joint_pos_handles[i].get().get_interface_name() == hardware_interface::HW_IF_POSITION)
-    {
-      m_current_positions(i) = joint_pos_handles[i].get().get_value();
-      m_last_positions(i) = m_current_positions(i);
-    }
+    if (joint_pos_handles[i].get().get_interface_name() != hardware_interface::HW_IF_POSITION)
+      continue;
+    const auto current_position_opt = joint_pos_handles[i].get().get_optional();
+    if (!current_position_opt) continue;
+    m_current_positions(i) = current_position_opt.value();
+    m_last_positions(i) = m_current_positions(i);
   }
 }
 

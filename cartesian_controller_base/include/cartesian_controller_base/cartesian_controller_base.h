@@ -207,9 +207,14 @@ private:
      */
   void stopCurrentMotion()
   {
+    bool all_writes_successful = true;
     for (size_t i = 0; i < m_joint_cmd_vel_handles.size(); ++i)
     {
-      m_joint_cmd_vel_handles[i].get().set_value(0.0);
+      all_writes_successful &= m_joint_cmd_vel_handles[i].get().set_value(0.0);
+    }
+    if (!all_writes_successful)
+    {
+      RCLCPP_WARN(get_node()->get_logger(), "Error while writing to command interfaces.");
     }
   }
 
